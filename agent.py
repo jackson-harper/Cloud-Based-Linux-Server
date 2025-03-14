@@ -1,14 +1,30 @@
 import os
 import psutil
+import threading
 from flask import Flask, jsonify
 
 app = Flask(__name__)
 PIPE_PATH = "/tmp/monitoring_pipe"
 
-def write_to_pipe(data):
+# Ensure the named pipe exists
+if not os.path.exists(PIPE_PATH):
+    os.mkfifo(PIPE_PATH)
 
+def read_pipe():
+    """ Continuously reads from the named pipe to prevent blocking. """
+    with open(PIPE_PATH, "r") as fifo:
+        while True:
+            data = fifo.readline().strip()
+            if data:
+                print(f"Received from pipe: {data}")
+
+# Start the reader in a separate background thread
+threading.Thread(target=read_pipe, daemon=True).start()
+
+def write_to_pipe(data):
+    """ Writes data to the named pipe without blocking. """
     try:
-        with open(PIPE_PATH, "w") as fifo:
+        with open(PIPE_PATH, "w", buffering=1) as fifo:
             fifo.write(data + "\n")
     except Exception as e:
         print(f"Error writing to pipe: {e}")
@@ -24,14 +40,12 @@ def get_metrics():
     }
 
     metrics_str = str(metrics)
-    
+
     # Write data to the named pipe
     write_to_pipe(metrics_str)
-    
+
     return jsonify(metrics)
-# pipe
-if __name__ == '__main__':
-    if not os.path.exists(PIPE_PATH):
-        os.mkfifo(PIPE_PATH)  # Ensure pipe exists
-    app.run(host='0.0.0.0', port=5000, debug=False)
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000, debug=False)
 
