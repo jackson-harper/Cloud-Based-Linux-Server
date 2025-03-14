@@ -20,4 +20,3 @@ stress-ng --io 4 --timeout 30s --metrics-brief | tee -a $LOG_FILE
 stress-ng --cpu 2 --io 2 --vm 1 --vm-bytes 256M --timeout 30s --metrics-brief | tee -a $LOG_FILE
 
 echo "Stress test completed!" | tee -a $LOG_FILE
-
