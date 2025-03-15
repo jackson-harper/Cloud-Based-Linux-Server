@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Server Dashboard</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+</head>
+<body>
+    <h1>Server Performance Metrics</h1>
+    <div id="graph"></div>
+
+    <script>
+        function fetchAndUpdateGraph() {
+            fetch("/metrics")
+                .then(response => response.json())
+                .then(data => {
+                    let traces = [];
+
+                    for (let server in data) {
+                        if (!data[server].error) {
+                            traces.push({
+                                x: ["CPU", "Memory", "Disk", "Network", "Load Avg"],
+                                y: [
+                                    data[server].CPU_Usage || 0,
+                                    data[server].Memory_Usage || 0,
+                                    data[server].Disk_Usage || 0,
+                                    (data[server].Network_Usage || 0) / 1e6,  // Convert bytes to MB
+                                    data[server].Load_Average || 0
+                                ],
+                                name: server,
+                                type: "bar"
+                            });
+                        }
+                    }
+
+                    let layout = {
+                        title: "Server Performance Metrics",
+                        xaxis: { title: "Metric" },
+                        yaxis: { title: "Usage (%)" },
+                        barmode: "group"
+                    };
+
+                    Plotly.newPlot("graph", traces, layout);
+                });
+        }
+
+        fetchAndUpdateGraph(); // Initial load
+        setInterval(fetchAndUpdateGraph, 10000); // Auto-update every 10 seconds
+    </script>
+</body>
+</html>
