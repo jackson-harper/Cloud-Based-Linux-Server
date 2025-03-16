@@ -9,20 +9,21 @@ app = Flask(__name__)
 
 # Monitored servers
 MONITORED_SERVERS = {
-    "Monitored Server (Agent)": "http://10.10.1.2:5000/metrics",
-    "Server Two": "http://35.211.165.75:5000/metrics",
+    "Server Quy": "http://10.10.1.2:5000/metrics",
+    "Server Jackson": "http://35.211.59.223:5000/metrics",
+    "Server Sebas": "http://35.209.21.236:5000/metrics",
 }
 
 # Global variable for storing metrics
 latest_metrics = {}
 
-# Default thresholds (user adjustable)
+# Default thresholds
 thresholds = {
-    "CPU_Usage": 80,    # Notify if CPU exceeds 80%
-    "Memory_Usage": 75, # Notify if Memory exceeds 75%
-    "Disk_Usage": 80,   # Notify if Disk exceeds 80%
-    "Network_Usage": 1000000000,  # Alert if Network usage exceeds 1GB (in bytes)
-    "Load_Average": 5   # Notify if Load Average exceeds 5
+    "CPU_Usage": 80,    # changes color if CPU exceeds 80%
+    "Memory_Usage": 75, # changes color if Memory exceeds 75%
+    "Disk_Usage": 80,   # changes color if Disk exceeds 80%
+    "Network_Usage": 1000000000,  # alert if Network usage exceeds 1GB (in bytes)
+    "Load_Average": 5   # changes color Load Average exceeds 5
 }
 
 # Function to fetch metrics from monitored servers
@@ -35,29 +36,29 @@ def fetch_metrics():
             if response.status_code == 200:
                 metrics = response.json()
                 if isinstance(metrics.get("Load_Average"), list):
-                    metrics["Load_Average"] = metrics["Load_Average"][0]  # Extract first value
+                    metrics["Load_Average"] = metrics["Load_Average"][0]
                 data[server_name] = metrics
                 
                 # Print the results for debugging
-                print(f"\n[DEBUG] Metrics from {server_name}:")
+                print(f"\n Metrics from {server_name}:")
                 print(f"  - CPU Usage: {metrics.get('CPU_Usage', 0)}%")
                 print(f"  - Memory Usage: {metrics.get('Memory_Usage', 0)}%")
                 print(f"  - Disk Usage: {metrics.get('Disk_Usage', 0)}%")
-                print(f"  - Network Usage: {metrics.get('Network_Usage', 0) / 1e6} MB")
+                print(f"  - Network Usage: {metrics.get('Network_Usage', 0) / 1e9} GB")
                 print(f"  - Load Average: {metrics.get('Load_Average', 0)}\n")
 
             else:
                 data[server_name] = {"error": "No response from server"}
         except requests.exceptions.RequestException:
-            pass  # Ignore connection failures
+            pass
 
     latest_metrics = data
 
-# Background thread to update metrics every 10 seconds
+# Background thread to update metrics every 5 seconds
 def start_background_fetch():
     while True:
         fetch_metrics()
-        time.sleep(10)
+        time.sleep(5)
 
 # Start background thread
 threading.Thread(target=start_background_fetch, daemon=True).start()
