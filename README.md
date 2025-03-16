@@ -69,8 +69,8 @@ http://<dashboard_internal_ip>:5001
 Edit `dashboard.py` to add new monitored servers:
 ```python
 MONITORED_SERVERS = {
-    "Server 1": "http://10.10.1.2:5000/metrics",
-    "Server 2": "http://35.211.165.75:5000/metrics",
+    "Server 1": "http://Your Server IP Here:5000/metrics",
+    "Server 2": "http://Your 2nd Server IP Here:5000/metrics",
 }
 ```
 
