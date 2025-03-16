@@ -34,6 +34,8 @@ def get_metrics():
 
     return jsonify(metrics)
 
+
+
 if __name__ == '__main__':
     if not os.path.exists(PIPE_PATH):
         os.mkfifo(PIPE_PATH)  # Ensure named pipe exists
