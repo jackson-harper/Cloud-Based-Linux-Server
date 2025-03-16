@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Server Dashboard</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+</head>
+<body>
+    <h1>Server Performance Dashboard</h1>
+
+    <h3>Adjust Notification Thresholds</h3>
+    <label>CPU Usage Threshold (%): <input type="number" id="cpu-threshold" value="80"></label>
+    <label>Memory Usage Threshold (%): <input type="number" id="memory-threshold" value="75"></label>
+    <label>Disk Usage Threshold (%): <input type="number" id="disk-threshold" value="80"></label>
+    <label>Network Usage Threshold (GB): <input type="number" id="network-threshold" value="10"></label>
+    <label>Load Avg Threshold: <input type="number" id="load-threshold" value="5"></label>
+    <button onclick="updateThresholds()">Update Thresholds</button>
+
+    <div id="graph"></div>
+
+    <script>
+        let thresholds = {
+            "CPU_Usage": 80,
+            "Memory_Usage": 75,
+            "Disk_Usage": 80,
+            "Network_Usage": 10, // In GB
+            "Load_Average": 5
+        };
+
+        function fetchAndUpdateGraph() {
+            fetch("/metrics")
+                .then(response => response.json())
+                .then(data => {
+                    let traces = [];
+
+                    for (let server in data) {
+                        if (!data[server].error) {
+                            let cpu = data[server].CPU_Usage || 0;
+                            let memory = data[server].Memory_Usage || 0;
+                            let disk = data[server].Disk_Usage || 0;
+                            let network = (data[server].Network_Usage || 0) / 1e9; // Convert bytes to GB
+                            let load = data[server].Load_Average || 0;
+
+                            let colors = [
+                                cpu > thresholds.CPU_Usage ? "red" : "blue",
+                                memory > thresholds.Memory_Usage ? "red" : "blue",
+                                disk > thresholds.Disk_Usage ? "red" : "blue",
+                                network > thresholds.Network_Usage ? "red" : "blue",
+                                load > thresholds.Load_Average ? "red" : "blue"
+                            ];
+
+                            traces.push({
+                                x: ["CPU", "Memory", "Disk", "Network", "Load Avg"],
+                                y: [cpu, memory, disk, network, load],
+                                name: server,
+                                type: "bar",
+                                marker: { color: colors }
+                            });
+                        }
+                    }
+
+                    let layout = {
+                        title: "Server Performance Metrics",
+                        xaxis: { title: "Metric" },
+                        yaxis: { title: "Usage (%)" },
+                        barmode: "group"
+                    };
+
+                    Plotly.newPlot("graph", traces, layout);
+                });
+        }
+
+        function updateThresholds() {
+            thresholds = {
+                "CPU_Usage": parseFloat(document.getElementById("cpu-threshold").value),
+                "Memory_Usage": parseFloat(document.getElementById("memory-threshold").value),
+                "Disk_Usage": parseFloat(document.getElementById("disk-threshold").value),
+                "Network_Usage": parseFloat(document.getElementById("network-threshold").value),
+                "Load_Average": parseFloat(document.getElementById("load-threshold").value)
+            };
+
+            fetch("/update_thresholds", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(thresholds)
+            })
+            .then(response => response.json())
+            .then(data => console.log(data.message));
+
+            fetchAndUpdateGraph();
+        }
+
+        fetchAndUpdateGraph(); // Initial load
+        setInterval(fetchAndUpdateGraph, 5000); // Auto-update every 5 seconds
+    </script>
+</body>
+</html>
