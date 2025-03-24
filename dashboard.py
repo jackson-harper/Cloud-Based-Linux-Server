@@ -17,6 +17,18 @@ MONITORED_SERVERS = {
 # Global variable for storing metrics
 latest_metrics = {}
 
+# Historical metrics storage for all servers and all 5 metrics
+metric_history = {
+    server: {
+        "CPU_Usage": [],
+        "Memory_Usage": [],
+        "Disk_Usage": [],
+        "Network_Usage": [],
+        "Load_Average": [],
+        "Timestamps": []
+    } for server in MONITORED_SERVERS
+}
+
 # Default thresholds
 thresholds = {
     "CPU_Usage": 80,    # changes color if CPU exceeds 80%
@@ -30,6 +42,8 @@ thresholds = {
 def fetch_metrics():
     global latest_metrics
     data = {}
+    timestamp = time.strftime("%H:%M:%S")  # Timestamp for history tracking
+
     for server_name, url in MONITORED_SERVERS.items():
         try:
             response = requests.get(url, timeout=3)
@@ -38,7 +52,20 @@ def fetch_metrics():
                 if isinstance(metrics.get("Load_Average"), list):
                     metrics["Load_Average"] = metrics["Load_Average"][0]
                 data[server_name] = metrics
-                
+
+                # Store metrics in history
+                metric_history[server_name]["Timestamps"].append(timestamp)
+                metric_history[server_name]["CPU_Usage"].append(metrics.get("CPU_Usage", 0))
+                metric_history[server_name]["Memory_Usage"].append(metrics.get("Memory_Usage", 0))
+                metric_history[server_name]["Disk_Usage"].append(metrics.get("Disk_Usage", 0))
+                metric_history[server_name]["Network_Usage"].append(metrics.get("Network_Usage", 0) / 1e9)  # Convert to GB
+                metric_history[server_name]["Load_Average"].append(metrics.get("Load_Average", 0))
+
+                # Trim history to last 30 entries
+                for key in metric_history[server_name]:
+                    if len(metric_history[server_name][key]) > 30:
+                        metric_history[server_name][key].pop(0)
+
                 # Print the results for debugging
                 print(f"\n Metrics from {server_name}:")
                 print(f"  - CPU Usage: {metrics.get('CPU_Usage', 0)}%")
@@ -67,6 +94,11 @@ threading.Thread(target=start_background_fetch, daemon=True).start()
 @app.route("/metrics")
 def metrics():
     return jsonify(latest_metrics)
+
+# Route to fetch historical metrics
+@app.route("/history")
+def history():
+    return jsonify(metric_history)
 
 # Route to update user-adjustable thresholds
 @app.route("/update_thresholds", methods=["POST"])

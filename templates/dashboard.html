@@ -18,17 +18,20 @@
     <button onclick="updateThresholds()">Update Thresholds</button>
 
     <div id="graph"></div>
+    <div id="history-chart" style="margin-top: 40px;"></div>
 
     <script>
         let thresholds = {
             "CPU_Usage": 80,
             "Memory_Usage": 75,
             "Disk_Usage": 80,
-            "Network_Usage": 10, // In GB
+            "Network_Usage": 10,
             "Load_Average": 5
         };
 
         function fetchAndUpdateGraph() {
+            const scrollY = window.scrollY;
+
             fetch("/metrics")
                 .then(response => response.json())
                 .then(data => {
@@ -39,7 +42,7 @@
                             let cpu = data[server].CPU_Usage || 0;
                             let memory = data[server].Memory_Usage || 0;
                             let disk = data[server].Disk_Usage || 0;
-                            let network = (data[server].Network_Usage || 0) / 1e9; // Convert bytes to GB
+                            let network = (data[server].Network_Usage || 0) / 1e9;
                             let load = data[server].Load_Average || 0;
 
                             let colors = [
@@ -60,14 +63,53 @@
                         }
                     }
 
-                    let layout = {
+                    Plotly.newPlot("graph", traces, {
                         title: "Server Performance Metrics",
                         xaxis: { title: "Metric" },
                         yaxis: { title: "Usage (%)" },
                         barmode: "group"
-                    };
+                    });
 
-                    Plotly.newPlot("graph", traces, layout);
+                    window.scrollTo(0, scrollY);
+                });
+        }
+
+        function fetchAndRenderHistory() {
+            fetch("/history")
+                .then(response => response.json())
+                .then(history => {
+                    let charts = [];
+
+                    for (let metric of ["CPU_Usage", "Memory_Usage", "Disk_Usage", "Network_Usage", "Load_Average"]) {
+                        let traces = [];
+                        for (let server in history) {
+                            traces.push({
+                                x: history[server]["Timestamps"],
+                                y: history[server][metric],
+                                mode: "lines+markers",
+                                name: server
+                            });
+                        }
+
+                        charts.push({
+                            data: traces,
+                            layout: {
+                                title: `${metric.replace(/_/g, " ")} Over Time`,
+                                xaxis: { title: "Timestamp" },
+                                yaxis: { title: metric === "Network_Usage" ? "GB" : "%" }
+                            }
+                        });
+                    }
+
+                    let container = document.getElementById("history-chart");
+                    container.innerHTML = "";
+
+                    charts.forEach((chart, i) => {
+                        let div = document.createElement("div");
+                        div.id = "chart-" + i;
+                        container.appendChild(div);
+                        Plotly.newPlot(div.id, chart.data, chart.layout);
+                    });
                 });
         }
 
@@ -91,8 +133,13 @@
             fetchAndUpdateGraph();
         }
 
-        fetchAndUpdateGraph(); // Initial load
-        setInterval(fetchAndUpdateGraph, 5000); // Auto-update every 5 seconds
+        fetchAndUpdateGraph();
+        fetchAndRenderHistory();
+
+        setInterval(() => {
+            fetchAndUpdateGraph();
+            fetchAndRenderHistory();
+        }, 5000);
     </script>
 </body>
 </html>
